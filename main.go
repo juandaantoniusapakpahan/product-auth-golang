@@ -25,6 +25,8 @@ func main() {
 		SigningKey:  []byte(tokenCookie.GetTokenKeySecret()),
 		TokenLookup: "cookie:access-token",
 	}))
+
+	apiGroup.POST("/resume", handlers.CreateResumHandler())
 	fmt.Println("Sever started at http://localhost:8080")
 	e.Logger.Fatal(e.Start(":8080"))
 }
