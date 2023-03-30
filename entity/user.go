@@ -9,20 +9,19 @@ import (
 	"product-auth/database"
 
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var ctx = context.Background()
 
 type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty"`
-	Name     string             `json:"name" bson:"name" validate:"required"`
-	Email    string             `json:"email" bson:"email" validate:"required, email"`
-	Password string             `json:"password" bson:"password" validate:"required"`
-	Role     string             `json:"role" bson:"role" default:"user"`
+	ID       bson.ObjectId `bson:"_id,omitempty" json:"_id"`
+	Name     string        `json:"name" bson:"name" validate:"required"`
+	Email    string        `json:"email" bson:"email" validate:"required, email"`
+	Password string        `json:"password" bson:"password" validate:"required"`
+	Role     string        `json:"role" bson:"role" default:"user"`
 }
 
 func AddUser(c echo.Context) (error, int) {

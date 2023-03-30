@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -54,7 +54,7 @@ func generateAccessToken(user *entity.User) (string, time.Time, error) {
 
 func generateToken(user *entity.User, expr time.Time, secret []byte) (string, time.Time, error) {
 	claims := &Claims{
-		ID: user.ID.String(),
+		ID: string(user.ID[0:]),
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expr.Unix(),
 		},
@@ -83,7 +83,7 @@ func setTokenCookie(tokenName, token string, expir time.Time, c echo.Context) {
 func setUserCookie(user *entity.User, expir time.Time, c echo.Context) {
 	cookie := new(http.Cookie)
 	cookie.Name = "user"
-	cookie.Value = user.ID.String()
+	cookie.Value = string(user.ID[0:])
 	cookie.Expires = expir
 	cookie.Path = "/"
 	c.SetCookie(cookie)
@@ -122,12 +122,11 @@ func TokenRefresherMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 				}
 
 				if tkn != nil && tkn.Valid {
-					objID, err := primitive.ObjectIDFromHex(claims.ID)
 					if err != nil {
 						panic(err)
 					}
 					_ = GenerateTokenAndSetCookie(&entity.User{
-						ID: objID,
+						ID: bson.ObjectId(claims.ID),
 					}, c)
 				}
 			}
