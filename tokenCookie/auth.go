@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
-	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -18,7 +17,8 @@ const (
 )
 
 type Claims struct {
-	ID string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 	jwt.StandardClaims
 }
 
@@ -53,8 +53,10 @@ func generateAccessToken(user *entity.User) (string, time.Time, error) {
 }
 
 func generateToken(user *entity.User, expr time.Time, secret []byte) (string, time.Time, error) {
+
 	claims := &Claims{
-		ID: string(user.ID[0:]),
+		Name:  user.Name,
+		Email: user.Email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expr.Unix(),
 		},
@@ -81,9 +83,10 @@ func setTokenCookie(tokenName, token string, expir time.Time, c echo.Context) {
 }
 
 func setUserCookie(user *entity.User, expir time.Time, c echo.Context) {
+
 	cookie := new(http.Cookie)
 	cookie.Name = "user"
-	cookie.Value = string(user.ID[0:])
+	cookie.Value = user.Email
 	cookie.Expires = expir
 	cookie.Path = "/"
 	c.SetCookie(cookie)
@@ -120,13 +123,20 @@ func TokenRefresherMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 						c.Response().Writer.WriteHeader(http.StatusUnauthorized)
 					}
 				}
-
 				if tkn != nil && tkn.Valid {
 					if err != nil {
 						panic(err)
 					}
+
+					if err != nil {
+						panic(err)
+					}
+					if err != nil {
+						c.Response().Writer.WriteHeader(http.StatusInternalServerError)
+					}
 					_ = GenerateTokenAndSetCookie(&entity.User{
-						ID: bson.ObjectId(claims.ID),
+						Name:  claims.Name,
+						Email: claims.Email,
 					}, c)
 				}
 			}

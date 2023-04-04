@@ -9,6 +9,7 @@ import (
 	"product-auth/database"
 
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
@@ -17,11 +18,11 @@ import (
 var ctx = context.Background()
 
 type User struct {
-	ID       bson.ObjectId `bson:"_id,omitempty" json:"_id"`
-	Name     string        `json:"name" bson:"name" validate:"required"`
-	Email    string        `json:"email" bson:"email" validate:"required, email"`
-	Password string        `json:"password" bson:"password" validate:"required"`
-	Role     string        `json:"role" bson:"role" default:"user"`
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+	Name     string             `json:"name" bson:"name" validate:"required"`
+	Email    string             `json:"email" bson:"email" validate:"required, email"`
+	Password string             `json:"password" bson:"password" validate:"required"`
+	Role     string             `json:"role" bson:"role" default:"user"`
 }
 
 func AddUser(c echo.Context) (error, int) {
@@ -91,4 +92,25 @@ func SignIn(user User) (*User, error, int) {
 	}
 
 	return &data, nil, 0
+}
+
+func CheckUser(name string, email string) (error, *User) {
+	db, err := database.Connect()
+	if err != nil {
+		return err, &User{}
+	}
+
+	u := new(User)
+
+	filter := bson.M{"name": name, "email": email}
+	err = db.Collection("users").FindOne(ctx, filter).Decode(&u)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return err, &User{}
+		}
+		panic(err)
+	}
+
+	return nil, u
 }

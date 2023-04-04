@@ -1,6 +1,12 @@
 package entity
 
 import (
+	"encoding/json"
+	"net/http"
+	"product-auth/database"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -48,9 +54,13 @@ type Details struct {
 	Email   string `json:"email" bson:"email"`
 }
 
+type Owner struct {
+	UserId primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+}
+
 type Resume struct {
-	ID                 bson.ObjectId       `bson:"_id,omitempty" json:"_id"`
-	UserId             bson.ObjectId       `bson:"user_id,omitempty" json:"user_id"`
+	ID                 primitive.ObjectID  `bson:"_id,omitempty" json:"_id"`
+	UserId             Owner               `bson:"owner" json:"owner"`
 	Name               string              `json:"name" bson:"name"`
 	Position           string              `json:"position" bson:"position"`
 	Profile            string              `json:"profile" bson:"profile"`
@@ -61,4 +71,101 @@ type Resume struct {
 	MediaSosial        []Medsos            `json:"media_sosial" bson:"media_sosial"`
 	SkillsHistory      []Skills            `json:"skill_history" bson:"skill_history"`
 	Hobbies            []string            `json:"hobbies" bson:"hobbies"`
+}
+
+func AddResume(name, email string, payload []byte) (error, int) {
+	rsm := new(Resume)
+	err := json.Unmarshal(payload, &rsm)
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+	err, u := CheckUser(name, email)
+
+	objID, err := primitive.ObjectIDFromHex(u.ID.Hex())
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	rsm.UserId = Owner{objID}
+	db, err := database.Connect()
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	_, err = db.Collection("resumes").InsertOne(ctx, rsm)
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+
+	return nil, http.StatusCreated
+}
+
+func EditResume(name, email, rsmId string, payload []byte) (int, error) {
+	userPayload := new(Resume)
+	resumeId, err := primitive.ObjectIDFromHex(rsmId)
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	err = json.Unmarshal(payload, &userPayload)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	err, user := CheckUser(name, email)
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+	userId, err := primitive.ObjectIDFromHex(user.ID.Hex())
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	filter := bson.M{}
+	filter["_id"] = resumeId
+	filter["owner._id"] = userId
+
+	_, err = db.Collection("resumes").UpdateOne(ctx, filter, bson.M{"$set": bson.M{"name": userPayload.Name,
+		"position": userPayload.Position, "profile": userPayload.Profile, "jobhistory": userPayload.JobHistory,
+		"education_history": userPayload.EducationHistory, "internship_history": userPayload.InternshipsHistory,
+		"detail_info": userPayload.DetailInfo, "media_sosial": userPayload.MediaSosial,
+		"skill_history": userPayload.SkillsHistory, "hobbies": userPayload.Hobbies}})
+
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return 0, nil
+}
+
+func GetResume(name, email string) (*Resume, int, error) {
+	err, user := CheckUser(name, email)
+	if err != nil {
+		return &Resume{}, http.StatusNotFound, err
+	}
+
+	userId, err := primitive.ObjectIDFromHex(user.ID.Hex())
+	if err != nil {
+		return &Resume{}, http.StatusInternalServerError, err
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		return &Resume{}, http.StatusInternalServerError, err
+	}
+
+	resultResume := new(Resume)
+	filter := bson.M{"owner._id": userId}
+	err = db.Collection("resumes").FindOne(ctx, filter).Decode(&resultResume)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return &Resume{}, http.StatusNotFound, err
+		}
+		panic(err)
+	}
+	return resultResume, http.StatusOK, nil
 }
