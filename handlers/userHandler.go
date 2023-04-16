@@ -47,8 +47,9 @@ func SignInHandler() echo.HandlerFunc {
 		if err := tokenCookie.GenerateTokenAndSetCookie(data, c); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
-
-		return c.JSON(http.StatusOK, M{"status": "success", "message": "You are loggin"})
+		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
+		c.Response().WriteHeader(http.StatusOK)
+		return json.NewEncoder(c.Response()).Encode(M{"success": "true"})
 	}
 
 }
